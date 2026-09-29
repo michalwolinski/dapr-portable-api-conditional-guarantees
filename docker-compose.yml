@@ -1,0 +1,54 @@
+# Reproduces the capability gap between two state stores that Dapr lists
+# as *Stable*. Nothing here is Kubernetes-specific: daprd runs standalone
+# and the components are mounted from ./components.
+#
+# Versions pinned deliberately (verified to exist on Docker Hub):
+#   daprio/daprd 1.18.4  (1.18.5 was only an RC at the time of writing)
+#   redis 8.10.2, memcached 1.6.45, node 22.23.3-alpine
+services:
+  redis:
+    image: redis:8.10.2
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
+  memcached:
+    image: memcached:1.6.45
+    # memcached has no healthcheck binary in the image; daprd retries on its own
+
+  subscriber:
+    image: node:22.23.3-alpine
+    command: ["node", "/app/server.js"]
+    volumes:
+      - ./app:/app:ro
+    environment:
+      PORT: "8090"
+      FAIL_FIRST: "2"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8090/healthz"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
+  daprd:
+    image: daprio/daprd:1.18.4
+    command:
+      - "./daprd"
+      - "--app-id=demo"
+      - "--app-port=8090"
+      # daprd runs in its own container, so the app is reachable by service name
+      - "--app-channel-address=subscriber"
+      - "--dapr-http-port=3500"
+      - "--resources-path=/components"
+      - "--log-level=info"
+    volumes:
+      - ./components:/components:ro
+    ports:
+      - "3500:3500"
+    depends_on:
+      redis:
+        condition: service_healthy
+      subscriber:
+        condition: service_healthy

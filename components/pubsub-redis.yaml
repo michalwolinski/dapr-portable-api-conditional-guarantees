@@ -1,0 +1,16 @@
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: pubsub-redis
+spec:
+  type: pubsub.redis
+  version: v1
+  metadata:
+    - name: redisHost
+      value: redis:6379
+    - name: redisPassword
+      value: ""
+    # Redis Streams (the default) is what gives this component its
+    # redelivery behaviour; the in-memory variant does not survive restarts.
+    - name: processingTimeout
+      value: 5s

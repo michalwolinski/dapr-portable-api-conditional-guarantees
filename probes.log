@@ -1,0 +1,55 @@
+
+=== 0. capabilities, as the runtime itself reports them ===
+  statestore-memcached   ['TTL']
+  statestore-redis       ['ETAG', 'TRANSACTIONAL', 'TTL', 'QUERY_API', 'KEYS_LIKE', 'ACTOR']
+  actorRuntime           DISABLED
+
+=== 1. single-key write - both stores do CRUD ===
+  redis                                      -> 204 
+  memcached                                  -> 204 
+
+=== 2. multi-key transaction - one request, two stores ===
+  redis                                      -> 204 
+  memcached                                  -> 500 {"errorCode":"ERR_STATE_STORE_NOT_SUPPORTED","message":"state store statestore-memcached doesn't support transactions","details":[{"@type":"type.googleapis.com/googl
+
+=== 3a. optimistic concurrency on redis (ETAG capable) ===
+  redis: write v1                            -> 204 
+  redis: Etag header on read                 -> 2
+  redis: write, matching Etag + first-write  -> 204 
+  redis: write, same Etag again (stale)      -> 409 {"errorCode":"ERR_STATE_SAVE","message":"failed saving state in state store statestore-redis: possible etag mismatch. error from state store: ERR user_script:14: fai
+  redis: value after the stale write         -> 200 "v2"
+
+=== 3b. the same requests on memcached (no ETAG capability) ===
+  memcached: write v1                        -> 204 
+  memcached: Etag header on read             -> <none>
+  memcached: write, matching Etag + first-write -> 204 
+  memcached: write, deliberately stale Etag  -> 204 
+  memcached: value now                       -> 200 "v3"
+
+=== 4. redis: what a 'first-write' request leaves behind ===
+  write v1, no concurrency option            -> 204 
+    hash fields:
+      data	"v1"	version
+      1		
+  write v2, first-write + matching Etag      -> 204 
+    hash fields after a SUCCESSFUL first-write:
+      data	"v2"	version
+      2	first-write	0
+  now write v3 with NO Etag                  -> 500 {"errorCode":"ERR_STATE_SAVE","message":"failed saving state in state store statestore-redis: failed to set key demo||probe-marker: ERR user_script:14: failed to set
+  and again, NO Etag                         -> 500 {"errorCode":"ERR_STATE_SAVE","message":"failed saving state in state store statestore-redis: failed to set key demo||probe-marker: ERR user_script:14: failed to set
+  value is still (correctly) v2              -> 200 "v2"
+
+=== 5. Query API - same request, both stores ===
+  redis                                      -> 500 {"errorCode":"ERR_STATE_QUERY","message":"state store statestore-redis query failed: query index not found","details":[{"@type":"type.googleapis.com/google.rpc.Resou
+  memcached                                  -> 500 {"errorCode":"ERR_STATE_STORE_NOT_SUPPORTED","message":"state store does not support querying","details":[{"@type":"type.googleapis.com/google.rpc.ResourceInfo","des
+
+=== 6. pub/sub at-least-once redelivery ===
+  publish one event                          -> 204 
+    subscriber log (FAIL_FIRST=2):
+      subscriber listening on 8090
+      2026-09-29T19:09:50.752Z delivery #1 of d949de3e-cd2a-4743-8f65-df192cd39c33 -> 500 (deliberate)
+      2026-09-29T19:09:51.757Z delivery #2 of d949de3e-cd2a-4743-8f65-df192cd39c33 -> 500 (deliberate)
+      2026-09-29T19:09:52.761Z delivery #3 of d949de3e-cd2a-4743-8f65-df192cd39c33 -> 200 (acked)
+      2026-09-29T19:12:03.428Z delivery #1 of 028b6c45-6e76-4e7b-b58d-24c44b36d487 -> 500 (deliberate)
+      2026-09-29T19:12:04.431Z delivery #2 of 028b6c45-6e76-4e7b-b58d-24c44b36d487 -> 500 (deliberate)
+      2026-09-29T19:12:05.434Z delivery #3 of 028b6c45-6e76-4e7b-b58d-24c44b36d487 -> 200 (acked)

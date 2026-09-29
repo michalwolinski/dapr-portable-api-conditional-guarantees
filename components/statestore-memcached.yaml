@@ -1,0 +1,12 @@
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: statestore-memcached
+spec:
+  type: state.memcached
+  version: v1
+  metadata:
+    - name: hosts
+      value: memcached:11211
+    - name: maxIdleConnections
+      value: "10"

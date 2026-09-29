@@ -1,0 +1,21 @@
+# Without an explicit resiliency policy, retry behaviour is whatever the
+# component does by default - which is the article's point restated as
+# configuration. This makes redelivery explicit and observable.
+apiVersion: dapr.io/v1alpha1
+kind: Resiliency
+metadata:
+  name: pubsub-retry
+scopes:
+  - demo
+spec:
+  policies:
+    retries:
+      constantRetry:
+        policy: constant
+        duration: 1s
+        maxRetries: 10
+  targets:
+    components:
+      pubsub-redis:
+        inbound:
+          retry: constantRetry
