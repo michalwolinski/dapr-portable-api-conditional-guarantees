@@ -49,7 +49,11 @@ docker compose down -v
    a matching ETag gives `204`, and the same ETag again gives `409` — the
    value is not clobbered. On memcached there is **no `Etag` header at all**,
    and a write carrying a deliberately stale ETag still returns `204` and
-   overwrites the value. The parameter is accepted and ignored.
+   overwrites the value. That is the component's gap rather than the engine's:
+   memcached's own protocol carries a CAS token (`gets` returns it, `cas`
+   compares it), which is the same compare-and-swap — `state.memcached` simply
+   does not map that token onto the ETag the API expects — so the parameter is
+   accepted and ignored rather than rejected.
 
 5. **A Redis foot-gun the API does not mention.** After any write that uses
    `"options": {"concurrency": "first-write"}`, Dapr leaves a `first-write`
@@ -81,7 +85,9 @@ docker compose down -v
    declared for *that* store, refusing to start (exit 2) when one cannot meet
    them. Run it with `UNIFORM=1` and it flattens those requirements into a
    single set demanded of everything — which reproduces the mistake the article
-   is about, and fails an architecture that is perfectly correct.
+   is about, and fails an architecture that is perfectly correct. This
+   compose-and-probe pair is also the shape of a CI job: boot the stack with
+   the descriptors you actually deploy and run the probe before the deploy runs.
 
 ## Layout
 
