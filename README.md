@@ -1,8 +1,13 @@
 # Dapr: a portable API over non-portable guarantees
 
-Reproducible demo for the article of the same name. It runs the *same*
-state-management requests against two stores that Dapr lists as **Stable**,
-and against one Redis-specific behaviour that the API does not warn about.
+Reproducible demo for the article of the same name by **Michał Woliński**.
+
+- **Article:** https://wolinski.com/blog/dapr-portable-api-conditional-guarantees.html
+- **Author:** https://wolinski.com
+
+It runs the *same* state-management requests against two stores that Dapr
+lists as **Stable**, and against one Redis-specific behaviour that the API
+does not warn about.
 
 Nothing here needs a cluster or the Dapr CLI. `daprd` runs standalone in a
 container with the components mounted from `./components`.
@@ -83,3 +88,15 @@ app/server.js                           subscriber; FAIL_FIRST=2
 probes.sh                               the whole suite, idempotent
 probes.log                              captured output
 ```
+
+## About
+
+Written by [Michał Woliński](https://wolinski.com) — a systems architect
+working on backend infrastructure, distributed systems and production AI.
+The article this accompanies is
+[Dapr: A Portable API Over Non-Portable Guarantees](https://wolinski.com/blog/dapr-portable-api-conditional-guarantees.html).
+
+If you reproduce something different on your versions, or something here has
+drifted, an issue on this repository is the right place for it — the whole
+point of the exercise is that these behaviours are testable rather than
+assumed.
