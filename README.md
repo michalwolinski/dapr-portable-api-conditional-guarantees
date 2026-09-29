@@ -76,6 +76,13 @@ docker compose down -v
    one second apart — the interval comes from the resiliency policy in
    `components/resiliency-pubsub.yaml`, not from the API.
 
+8. **The probe asks the right question per store.** `probe_capabilities.py`
+   reads `/v1.0/metadata` and checks each store against the requirements
+   declared for *that* store, refusing to start (exit 2) when one cannot meet
+   them. Run it with `UNIFORM=1` and it flattens those requirements into a
+   single set demanded of everything — which reproduces the mistake the article
+   is about, and fails an architecture that is perfectly correct.
+
 ## Layout
 
 ```
@@ -87,6 +94,7 @@ components/resiliency-pubsub.yaml       explicit 1s retry policy
 app/server.js                           subscriber; FAIL_FIRST=2
 probes.sh                               the whole suite, idempotent
 probes.log                              captured output
+probe_capabilities.py                   per-store capability probe; UNIFORM=1 for the mistake
 ```
 
 ## About
